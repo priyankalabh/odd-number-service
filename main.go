@@ -1,60 +1,38 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
 	"odd-number-service/number"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
-/*
-{
-	"oddNumbers": [1,3,5,7]
-}
-*/
-type oddResponse struct {
-	OddNumbers []int `json:"oddNumbers"`
-}
-
 func main() {
-	http.HandleFunc("/api/odd", oddHandler)
-	err := http.ListenAndServe(":3030", nil)
-	if err != nil {
-		log.Fatalf("Listen n Serve error %v", err)
-	}
+	router := gin.Default()
+	router.GET("/api/odd", oddHandler)
+	router.Run(":6060")
 
 }
 
-func oddHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	param := r.URL.Query().Get("max")
+func oddHandler(c *gin.Context) {
+	param := c.Query("max")
 	if len(param) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"Error": "Query param max is not given ",
+		})
 		return
 	}
 	num, err := strconv.Atoi(param)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"Error": err.Error(),
+		})
 		return
 	}
 	result := number.FindOdds(num)
-	odd := oddResponse{
-		OddNumbers: result,
-	}
-	data, err := json.Marshal(&odd)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	return
+	c.JSON(http.StatusOK, gin.H{
+		"oddNumbers": result,
+	})
 
 }
